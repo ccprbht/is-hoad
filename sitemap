@@ -1,0 +1,206 @@
+Evergage.init().then(() => {
+    
+    const getPurchaseIdFromDataLayer = () => {
+        if (window.dataLayer) {
+            for (let i = 0; i < window.dataLayer.length; i++) {
+                if ((window.dataLayer[i].ecommerce  && window.dataLayer[i].ecommerce.purchase)) {
+                    return window.dataLayer[i].ecommerce.purchase.event_id;
+                }
+            }
+        }
+    };
+	const getProductIdFromDataLayer = () => {
+        if (window.dataLayer) {
+            for (let i = 0; i < window.dataLayer.length; i++) {
+                if ((window.dataLayer[i].ecommerce && window.dataLayer[i].ecommerce.purchase && window.dataLayer[i].ecommerce.purchase.products)) {
+                    var id = [];
+                    for (let j = 0; j < window.dataLayer[i].ecommerce.purchase.products.length; j++) {
+                       id[j]=window.dataLayer[i].ecommerce.purchase.products[j].id;
+					}
+                    return id;
+                }
+            }
+        }
+    };
+	
+	const getPriceFromDataLayer = () => {
+        if (window.dataLayer) {
+            for (let i = 0; i < window.dataLayer.length; i++) {
+                if ((window.dataLayer[i].ecommerce && window.dataLayer[i].ecommerce.purchase && window.dataLayer[i].ecommerce.purchase.products)) {
+                    var id = [];
+                    for (let j = 0; j < window.dataLayer[i].ecommerce.purchase.products.length; j++) {
+                       id[j]=window.dataLayer[i].ecommerce.purchase.products[j].price;
+					}
+                    return id;
+                }
+            }
+        }
+    };
+	const getQuantityFromDataLayer = () => {
+        if (window.dataLayer) {
+            for (let i = 0; i < window.dataLayer.length; i++) {
+                if ((window.dataLayer[i].ecommerce && window.dataLayer[i].ecommerce.purchase && window.dataLayer[i].ecommerce.purchase.products)) {
+                    var id = [];
+                    for (let j = 0; j < window.dataLayer[i].ecommerce.purchase.products.length; j++) {
+                       id[j]=window.dataLayer[i].ecommerce.purchase.products[j].quantity;
+					}
+                    return id;
+                }
+            }
+        }
+    };
+
+    const config = {
+        global: {
+            onActionEvent: (actionEvent) => {
+                const email = Evergage.util.getValueFromNestedObject("sfmcDataLayer.user.email");
+                if (email) {
+                    actionEvent.user = actionEvent.user || {};
+                    actionEvent.user.attributes = actionEvent.user.attributes || {};
+                    actionEvent.user.attributes.emailAddress = atob(email);
+                }
+                const name = Evergage.util.getValueFromNestedObject("sfmcDataLayer.user.name");
+                if (name) {
+                    actionEvent.user = actionEvent.user || {};
+                    actionEvent.user.attributes = actionEvent.user.attributes || {};
+                    actionEvent.user.attributes.userName = name;
+                    actionEvent.user.attributes.Name = name;
+                }
+                const mobile = Evergage.util.getValueFromNestedObject("sfmcDataLayer.user.mobile");
+                if (mobile) {
+                    actionEvent.user = actionEvent.user || {};
+                    actionEvent.user.attributes = actionEvent.user.attributes || {};
+                    actionEvent.user.attributes.Mobile = atob(mobile);
+                }
+                const id = Evergage.util.getValueFromNestedObject("sfmcDataLayer.user.id");
+                if (id) {
+                    actionEvent.user = actionEvent.user || {};
+                    actionEvent.user.id = id;
+                }
+                const loyaltyPoint = Evergage.util.getValueFromNestedObject("sfmcDataLayer.user.loyaltyPoint");
+                if (loyaltyPoint) {
+                    actionEvent.user = actionEvent.user || {};
+                    actionEvent.user.attributes = actionEvent.user.attributes || {};
+                    actionEvent.user.attributes.loyaltyPoint = loyaltyPoint;
+                }
+                return actionEvent;
+            },
+
+            contentZones: [
+                { name: "global_popup"},
+                { name: "global_popup_login"},
+                { name: "global_popup_mobile"},
+                { name: "global_popup_login_mobile"},
+            ]
+        },
+		
+        pageTypes: [
+            {
+                name: "Login Page",
+                action: "Login Page",
+                isMatch: () => /\/login/.test(window.location.href),
+                listeners: [
+                    Evergage.listener("click", ".custom-registration-button", () => {Evergage.sendEvent({action: "Create Account"});}),
+                ]
+            },
+            {
+                name: "Home Page",
+                action: "Home Page",
+                isMatch: () => /\/home/.test(window.location.href) || /^\/$/.test(window.location.pathname),
+                contentZones: [
+                    { name: "Pick_up_where_you_left_off", selector: "#Curated_Styles_Recommended_For_You" },
+                    { name: "hp_banner", selector: ".experience-accelerator_layouts-flexibleCarousel" },
+                    { name: "hp_banner_mobile", selector: ".experience-accelerator_layouts-flexibleCarousel" },
+                ],
+            },
+            {
+                name: "Viewed Category",
+                action: "Viewed Category",
+                isMatch: () => Evergage.cashDom("div.search-results__main").length > 0,
+                catalog: {
+                    Category: {
+                        _id: () => {
+                            return Evergage.DisplayUtils.pageElementLoaded(".breadcrumbs .breadcrumbs__item a", "html").then((ele) => {
+                                var a = Evergage.resolvers.buildCategoryId(".breadcrumbs .breadcrumbs__item a", 1, null, (categoryId) => categoryId.toUpperCase())();
+								if (a){
+									return a +"|"+Evergage.cashDom(".breadcrumbs .breadcrumbs__item")[Evergage.cashDom(".breadcrumbs .breadcrumbs__item").length- 1].innerText.toUpperCase();
+								}else{
+									return Evergage.cashDom(".breadcrumbs .breadcrumbs__item")[Evergage.cashDom(".breadcrumbs .breadcrumbs__item").length- 1].innerText.toUpperCase();
+								}
+                            });
+                        }
+                    }
+                }
+            },
+            {
+                name: "Product Detail Page",
+                action: "Product Detail Page",
+                isMatch: () => Evergage.cashDom("div.pdp").length > 0,
+                catalog: {
+                    Product: {
+                        _id: Evergage.cashDom(".pdp-main").attr("data-pid"),
+                        name: Evergage.cashDom(".pdp__name").text(),
+                        url: Evergage.resolvers.fromHref(),
+                        imageUrl: Evergage.resolvers.fromMeta("og:image"),
+                        price: Evergage.cashDom(".price__sales.sales span").attr("content"),
+                        categories: () => {
+                            return Evergage.DisplayUtils.pageElementLoaded(".breadcrumbs .breadcrumbs__item a", "html").then((ele) => {
+                                return Evergage.resolvers.buildCategoryId(".breadcrumbs .breadcrumbs__item a", 1, null, (categoryId) => [categoryId.toUpperCase()]);
+                            });
+                        }
+                    }
+                },
+                listeners: [
+                    Evergage.listener("click", ".add-to-cart", () => {
+                        const lineItem = Evergage.util.buildLineItemFromPageState("select[id*=qty]");
+                        lineItem.sku = { _id: Evergage.cashDom(".pdp-main").attr("data-pid") };
+                        Evergage.sendEvent({
+                            itemAction: Evergage.ItemAction.AddToCart,
+                            cart: {
+                                singleLine: {
+                                    Product: lineItem
+                                }
+                            }
+                        });
+                    })
+                ]
+            },
+            {
+                name: "order_confirmation",
+                isMatch: () => /\/Order-Confirm/.test(window.location.href),
+                itemAction: Evergage.ItemAction.Purchase,
+                catalog: {
+                    Product: {
+                        orderId: getPurchaseIdFromDataLayer(),
+                        lineItems: {
+                            _id: getProductIdFromDataLayer(),
+                            price:  getPriceFromDataLayer(),
+                            quantity:  getQuantityFromDataLayer(),
+                        }
+                    }
+                }
+            },
+            {
+                name: "Cart Page",
+                action: "Cart Page",
+                isMatch: () => /\/cart/.test(window.location.href),
+                listeners: [
+                    Evergage.listener("click", "#loyaltyForm .loyalty-points-btn", () => {Evergage.sendEvent({action: "Loyalty Points Used"});}),
+                    Evergage.listener("click", "#coupon-apply", () => {
+                        if(Evergage.cashDom("#couponCode").val()=="AND10" || Evergage.cashDom("input[value='AND10']:checked").length>0){
+                            Evergage.sendEvent({action: "AND10 Coupon Used"});
+                        }
+                    })
+                ]
+            },
+            {
+                name: "Other",
+                action: "Other",
+                isMatch: () => /\//.test(window.location.pathname),
+            }
+        ]
+    };
+    
+
+    Evergage.initSitemap(config);
+});
